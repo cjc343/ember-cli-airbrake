@@ -5,22 +5,23 @@ import config from "../config/environment";
 var isSetup = false;
 
 function setupAirbrake(container) {
-  Airbrake.addReporter(Airbrake.consoleReporter);
-  Airbrake.setProject(config.airbrake.projectId, config.airbrake.projectKey);
-  Airbrake.setEnvironmentName(config.environment);
-  if (config.airbrake.host) {
-    Airbrake.setHost(config.airbrake.host);
-  }
-  Airbrake.addEnvironment({
-    user_agent: window.navigator.userAgent
+  var airbrake = new airbrakeJs.Client({
+    projectId: config.airbrake.projectId,
+    projectKey: config.airbrake.projectKey
   });
+  if (config.airbrake.host) {
+    airbrake.setHost(config.airbrake.host);
+  }
 
   var preprocessor = function(err) { return err; };
   if (config.airbrake.preprocessor) {
     preprocessor = container.lookup(config.airbrake.preprocessor);
   }
+  if (config.airbrake.filter) {
+    airbrake.addFilter(container.lookup(config.airbrake.filter));
+  }
   function pushError(err) {
-    Airbrake.push(preprocessor(err));
+    airbrake.notify(preprocessor(err));
   }
 
   var originalOnError = Ember.onerror || Ember.K;
@@ -50,13 +51,7 @@ function setupAirbrake(container) {
 export function initialize(container) {
   if (config.airbrake && !isSetup) {
     isSetup = true;
-    if (Airbrake.setProject) {
-      setupAirbrake(container);
-    } else {
-      Airbrake.onload = function() {
-        setupAirbrake(container)
-      };
-    }
+    setupAirbrake(container);
   }
 }
 
